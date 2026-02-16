@@ -22,6 +22,10 @@ const secmeli_havuz_data = [
     { "id": "SGM 241", "name": "Web Sızma Testi", "akts": 6, "type": "S" },
     { "id": "SGM 243", "name": "Mobil Tek. ve Mobil Sızma Testi", "akts": 6, "type": "S" },
     { "id": "SGM 245", "name": "Siber Saldırılar ve Savunma Yönt.", "akts": 6, "type": "S" },
+    { "id": "SGM 251", "name": "Sızma Testi Raporlama ve Hukuki Çerçeve", "akts": 6, "type": "S" },
+    { "id": "SGM 253", "name": "Kablosuz Ağ Sızma Testi", "akts": 6, "type": "S" },
+    { "id": "SGM 255", "name": "Active Directory Güvenliği ve Saldırı Teknikleri", "akts": 6, "type": "S" },
+    { "id": "SGM 257", "name": "Otomasyon ve Betik Geliştirme", "akts": 6, "type": "S" },
 
     // --- 4. YARIYIL TEKNİK SEÇMELİLERİ (5 AKTS) ---
     { "id": "SGM 240", "name": "Bulut Tek. ve Bulut Sızma Testi", "akts": 5, "type": "S" },
