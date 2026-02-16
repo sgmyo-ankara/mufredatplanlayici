@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sızma Testi Operatörlüğü - Sunum Modu</title>
+    <style>
+        :root { 
+            --bg: #ebf0f3; 
+            --panel: #ffffff; 
+            --primary: #2c3e50; 
+            --accent: #3498db; 
+            --elective: #e67e22; 
+            --danger: #c0392b; 
+            --fixed: #f1f2f6; 
+            --fixed-text: #7f8c8d; 
+            --success: #27ae60; 
+            --save: #8e44ad; 
+            --expand: #34495e; 
+            --program: #d35400; /* Yeni Program Rengi */
+            --toggle: #7f8c8d; 
+        }
+        
+        body { 
+            font-family: 'Segoe UI', 'Roboto', Helvetica, Arial, sans-serif; 
+            background: var(--bg); 
+            margin: 0; 
+            display: flex; 
+            height: 100vh; 
+            overflow: hidden; 
+            font-size: 16px;
+        }
+        
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 998; display: none; backdrop-filter: blur(4px); }
+        #overlay.active { display: block; }
+
+        /* YAN PANEL */
+        .sidebar { 
+            width: 420px; 
+            background: #dfe4ea; 
+            border-right: 3px solid #ced4da; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 20px; 
+            overflow-y: auto; 
+        }
+        
+        .section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #bdc3c7; padding-bottom: 15px; margin-bottom: 25px; }
+        .section-title { font-size: 22px; font-weight: 800; color: var(--primary); margin: 0; }
+        
+        .pool-box { display: flex; flex-direction: column; margin-bottom: 25px; background: rgba(255,255,255,0.4); border-radius: 10px; padding: 5px; }
+        .pool-box.expanded { border: 4px solid var(--accent); background: white; padding: 20px; }
+
+        .pool-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #95a5a6; padding: 8px; }
+        .pool-title { font-size: 16px; font-weight: 700; color: var(--primary); margin: 0; }
+        
+        .header-controls { display: flex; gap: 8px; }
+        
+        .action-btn { 
+            width: 36px; height: 36px; 
+            border-radius: 50%; border: none; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; color: white; 
+            transition: transform 0.2s ease; box-shadow: 0 3px 6px rgba(0,0,0,0.2); 
+            font-size: 18px; 
+        }
+        .btn-add { background: var(--success); }
+        .btn-save { background: var(--save); }
+        .btn-expand { background: var(--expand); }
+        .btn-program { background: var(--program); } /* Yeni Buton Rengi */
+        .btn-toggle { background: var(--toggle); }
+        .action-btn:hover { transform: scale(1.15); }
+
+        /* ANA ALAN */
+        .main-content { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); gap: 25px; padding: 25px; box-sizing: border-box; }
+        
+        .semester-box { 
+            background: #fdfdfd; 
+            border: 3px dashed #bdc3c7; 
+            border-radius: 12px; 
+            display: flex; flex-direction: column; 
+            height: 100%; overflow: hidden; position: relative; 
+            transition: all 0.3s ease; 
+        }
+        
+        /* BÜYÜTÜLMÜŞ TEKİL KUTU MODU */
+        .expanded { 
+            position: fixed !important; top: 50% !important; left: 50% !important; 
+            transform: translate(-50%, -50%) !important; 
+            width: 95vw !important; height: 95vh !important; 
+            z-index: 1000 !important; border: 4px solid var(--primary) !important;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6) !important; background: #ffffff !important; 
+        }
+        .expanded .course-list { max-height: none !important; }
+        .expanded .course-name { font-size: 22px !important; } 
+
+        /* PROGRAM GÖRÜNÜMÜ (YENİ EKRAN) */
+        #program-overlay {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+            width: 95vw; height: 95vh;
+            background: #f0f3f5;
+            z-index: 2000;
+            display: none;
+            opacity: 0; transition: all 0.3s ease;
+            border-radius: 15px;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.7);
+            border: 5px solid var(--primary);
+            flex-direction: column;
+        }
+        #program-overlay.active { display: flex; transform: translate(-50%, -50%) scale(1); opacity: 1; }
+
+        .program-header {
+            background: var(--primary); color: white; padding: 15px 25px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .program-grid {
+            flex: 1; padding: 20px;
+            display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); gap: 20px;
+            overflow-y: auto;
+        }
+        
+        /* Program Görünümü İçindeki Dönem Kutuları */
+        .prog-term {
+            background: white; border-radius: 8px; border: 2px solid #bdc3c7;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .prog-term-header {
+            background: #dfe6e9; padding: 10px; font-weight: 800; color: var(--primary);
+            text-align: center; border-bottom: 2px solid #bdc3c7; font-size: 18px;
+        }
+        .prog-list { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+        
+        /* Program Görünümü Ders Satırı (Compact & Read-Only) */
+        .prog-card {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #f9f9f9; padding: 8px 12px; border-radius: 6px;
+            border-left: 5px solid var(--accent); font-size: 14px;
+        }
+        .prog-card.is-elective { border-left-color: var(--elective); }
+        .prog-card.is-fixed { border-left-color: var(--fixed-text); color: #7f8c8d; }
+        
+        .prog-code { font-weight: 800; margin-right: 10px; min-width: 70px; }
+        .prog-name { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .prog-akts { background: #e0e0e0; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-left: 10px; }
+
+        .close-program-btn {
+            background: none; border: none; color: white; font-size: 30px; cursor: pointer; line-height: 1;
+        }
+        .close-program-btn:hover { color: #e74c3c; }
+
+
+        /* DÖNEM BAŞLIKLARI (NORMAL GÖRÜNÜM) */
+        .semester-header { 
+            padding: 12px 15px; background: #eaeff2; border-bottom: 2px solid #dcdde1; 
+            display: flex; justify-content: space-between; align-items: center; height: 50px; 
+        }
+        .semester-title { font-weight: 800; color: var(--primary); font-size: 16px; text-transform: uppercase; margin: 0; }
+        
+        .course-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-height: 50px; }
+        
+        .course-card { 
+            background: var(--panel); border-radius: 8px; padding: 10px 15px; 
+            box-shadow: 0 3px 6px rgba(0,0,0,0.08); cursor: grab; position: relative; 
+            border-left: 8px solid var(--accent); 
+            user-select: none; padding-right: 85px; 
+            display: flex; align-items: center; min-height: 40px;
+        }
+        .course-card.is-elective { border-left-color: var(--elective); }
+        .course-card.is-fixed { border-left-color: var(--fixed-text); background: var(--fixed); opacity: 0.95; color: #666; }
+        .course-card.hidden { display: none !important; }
+
+        .course-content { display: flex; align-items: baseline; gap: 8px; width: 100%; overflow: hidden; }
+        .course-code { font-size: 14px; font-weight: 800; color: #7f8c8d; white-space: nowrap; }
+        .course-name { font-size: 15px; color: #2c3e50; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .akts-badge { font-size: 12px; font-weight: bold; background: #ecf0f1; color: #34495e; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+        .course-card.is-fixed .course-name { color: #555; font-weight: 500; }
+
+        .card-controls { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; gap: 4px; }
+        .icon-btn { border: none; border-radius: 4px; width: 32px; height: 32px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .edit-btn { background: #dfe4ea; color: #57606f; }
+        .edit-btn:hover { background: #cbd5e0; color: #2f3542; }
+        .delete-btn { background: #ffe0e0; color: #c0392b; }
+        .delete-btn:hover { background: #ffcccc; color: #e74c3c; }
+
+        .footer-info { background: #f1f2f6; border-top: 2px solid #dcdde1; padding: 10px 15px; display: flex; flex-direction: column; gap: 6px; }
+        .quota-row { display: flex; justify-content: space-between; color: #57606f; font-weight: 700; font-size: 14px; }
+        .akts-row { text-align: right; font-weight: 800; font-size: 16px; color: #2c3e50; border-top: 1px dashed #bdc3c7; padding-top: 6px; margin-top: 4px; }
+        .limit-error { color: var(--danger) !important; font-weight: 900; }
+        .semester-box.limit-exceeded { border-color: var(--danger); background: #fff0f0; }
+
+        .course-list::-webkit-scrollbar { width: 8px; }
+        .course-list::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="overlay" onclick="closeAll()"></div>
+
+<div id="program-overlay">
+    <div class="program-header">
+        <h2 style="margin:0;">SIZMA TESTİ UZMANLIĞI - 2 YILLIK ÖĞRENİM PROGRAMI</h2>
+        <button class="close-program-btn" onclick="closeAll()">×</button>
+    </div>
+    <div class="program-grid">
+        <div class="prog-term" id="prog-term-1"></div>
+        <div class="prog-term" id="prog-term-2"></div>
+        <div class="prog-term" id="prog-term-3"></div>
+        <div class="prog-term" id="prog-term-4"></div>
+    </div>
+</div>
+
+<div class="sidebar" id="sidebar-container">
+    <div class="section-header">
+        <h2 class="section-title">ÖĞRENİM PROGRAMI PLANLAYICI</h2>
+        <button class="action-btn btn-program" onclick="showProgramView()" title="Tüm Programı Göster">📅</button>
+    </div>
+    
+    <div id="pool-box-compulsory" class="pool-box">
+        <div class="pool-header">
+            <p class="pool-title">ZORUNLU SGM HAVUZU</p>
+            <div class="header-controls">
+                <button class="action-btn btn-save" onclick="downloadHavuzlar()">💾</button>
+                <button class="action-btn btn-add" onclick="addNewCourse('compulsory-pool', 'Z')">+</button>
+                <button class="action-btn btn-expand" onclick="toggleExpand('pool-box-compulsory', this)">🔍</button>
+            </div>
+        </div>
+        <div id="compulsory-pool" class="course-list" style="max-height: 300px;"></div>
+    </div>
+    
+    <div id="pool-box-elective" class="pool-box">
+        <div class="pool-header">
+            <p class="pool-title">SEÇMELİ DERS HAVUZU</p>
+            <div class="header-controls">
+                <button class="action-btn btn-save" onclick="downloadHavuzlar()">💾</button>
+                <button class="action-btn btn-add" onclick="addNewCourse('elective-pool', 'S')">+</button>
+                <button class="action-btn btn-expand" onclick="toggleExpand('pool-box-elective', this)">🔍</button>
+            </div>
+        </div>
+        <div id="elective-pool" class="course-list"></div>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="semester-box" id="term-1" data-quota-z="5" data-quota-s="0">
+        <div class="semester-header">
+            <p class="semester-title">1. YARIYIL (Giriş)</p>
+            <div class="header-controls">
+                <button class="action-btn btn-toggle" onclick="toggleFixed('list-term-1', this)">👁</button>
+                <button class="action-btn btn-save" onclick="downloadJS('donem1')">💾</button>
+                <button class="action-btn btn-expand" onclick="toggleExpand('term-1', this)">🔍</button>
+            </div>
+        </div>
+        <div id="list-term-1" class="course-list"></div>
+        <div class="footer-info">
+            <div class="quota-row">
+                <span class="quota-z">Zorunlu: 0/5</span>
+                <span class="quota-s">Seçmeli: 0/0</span>
+            </div>
+            <div class="akts-row">AKTS: <span class="akts-val">0</span> / 30</div>
+        </div>
+    </div>
+
+    <div class="semester-box" id="term-2" data-quota-z="4" data-quota-s="0">
+        <div class="semester-header">
+            <p class="semester-title">2. YARIYIL (Uygulama)</p>
+            <div class="header-controls">
+                <button class="action-btn btn-toggle" onclick="toggleFixed('list-term-2', this)">👁</button>
+                <button class="action-btn btn-save" onclick="downloadJS('donem2')">💾</button>
+                <button class="action-btn btn-expand" onclick="toggleExpand('term-2', this)">🔍</button>
+            </div>
+        </div>
+        <div id="list-term-2" class="course-list"></div>
+        <div class="footer-info">
+            <div class="quota-row">
+                <span class="quota-z">Zorunlu: 0/4</span>
+                <span class="quota-s">Seçmeli: 0/0</span>
+            </div>
+            <div class="akts-row">AKTS: <span class="akts-val">0</span> / 30</div>
+        </div>
+    </div>
+
+    <div class="semester-box" id="term-3" data-quota-z="3" data-quota-s="3">
+        <div class="semester-header">
+            <p class="semester-title">3. YARIYIL (Metodoloji)</p>
+            <div class="header-controls">
+                <button class="action-btn btn-toggle" onclick="toggleFixed('list-term-3', this)">👁</button>
+                <button class="action-btn btn-save" onclick="downloadJS('donem3')">💾</button>
+                <button class="action-btn btn-expand" onclick="toggleExpand('term-3', this)">🔍</button>
+            </div>
+        </div>
+        <div id="list-term-3" class="course-list"></div>
+        <div class="footer-info">
+            <div class="quota-row">
+                <span class="quota-z">Zorunlu: 0/3</span>
+                <span class="quota-s">Seçmeli: 0/3</span>
+            </div>
+            <div class="akts-row">AKTS: <span class="akts-val">0</span> / 30</div>
+        </div>
+    </div>
+
+    <div class="semester-box" id="term-4" data-quota-z="1" data-quota-s="0">
+        <div class="semester-header">
+            <p class="semester-title">4. YARIYIL (Saha)</p>
+            <div class="header-controls">
+                <button class="action-btn btn-toggle" onclick="toggleFixed('list-term-4', this)">👁</button>
+                <button class="action-btn btn-save" onclick="downloadJS('donem4')">💾</button>
+                <button class="action-btn btn-expand" onclick="toggleExpand('term-4', this)">🔍</button>
+            </div>
+        </div>
+        <div id="list-term-4" class="course-list"></div>
+        <div class="footer-info">
+            <div class="quota-row">
+                <span class="quota-z">Zorunlu: 0/1</span>
+                <span class="quota-s">Seçmeli: 0/0</span>
+            </div>
+            <div class="akts-row">AKTS: <span class="akts-val">0</span> / 30</div>
+        </div>
+    </div>
+</div>
+
+<script src="data/donem1.js"></script>
+<script src="data/donem2.js"></script>
+<script src="data/donem3.js"></script>
+<script src="data/donem4.js"></script>
+<script src="data/havuzlar.js"></script>
+
+<script>
+    // --- PROGRAM GÖRÜNÜMÜ MANTIĞI ---
+    function showProgramView() {
+        // Önce diğer açık şeyleri kapat
+        closeAll();
+
+        // Overlay'i aç
+        const overlay = document.getElementById('program-overlay');
+        const bg = document.getElementById('overlay');
+        
+        // Verileri Doldur
+        populateProgramColumn('list-term-1', 'prog-term-1', '1. YARIYIL');
+        populateProgramColumn('list-term-2', 'prog-term-2', '2. YARIYIL');
+        populateProgramColumn('list-term-3', 'prog-term-3', '3. YARIYIL');
+        populateProgramColumn('list-term-4', 'prog-term-4', '4. YARIYIL');
+
+        overlay.classList.add('active');
+        bg.classList.add('active');
+    }
+
+    function populateProgramColumn(sourceListId, targetDivId, title) {
+        const sourceList = document.getElementById(sourceListId);
+        const targetDiv = document.getElementById(targetDivId);
+        
+        // Temizle ve Başlık Ekle
+        let totalAkts = 0;
+        
+        // Verileri Topla
+        const cards = Array.from(sourceList.querySelectorAll('.course-card:not(.hidden)')); // Gizliler hariç
+        
+        let htmlContent = `<div class="prog-list">`;
+        
+        cards.forEach(card => {
+            const code = card.querySelector('.course-code').innerText;
+            const name = card.querySelector('.course-name').innerText;
+            const akts = card.dataset.akts;
+            const typeClass = card.classList.contains('is-elective') ? 'is-elective' : '';
+            const fixedClass = card.classList.contains('is-fixed') ? 'is-fixed' : '';
+            
+            totalAkts += parseInt(akts);
+
+            htmlContent += `
+                <div class="prog-card ${typeClass} ${fixedClass}">
+                    <span class="prog-code">${code}</span>
+                    <span class="prog-name">${name}</span>
+                    <span class="prog-akts">${akts}</span>
+                </div>
+            `;
+        });
+        htmlContent += `</div>`;
+        
+        // Header'ı şimdi oluştur (AKTS toplamıyla)
+        const headerHtml = `<div class="prog-term-header">${title} (${totalAkts} AKTS)</div>`;
+        
+        targetDiv.innerHTML = headerHtml + htmlContent;
+    }
+
+    // --- GENEL KAPATMA VE GÖRÜNÜM KONTROLLERİ ---
+    function toggleFixed(containerId, btn) {
+        const container = document.getElementById(containerId);
+        const fixedCards = container.querySelectorAll('.is-fixed');
+        if (fixedCards.length === 0) return;
+        const isCurrentlyHidden = fixedCards[0].classList.contains('hidden');
+        fixedCards.forEach(card => isCurrentlyHidden ? card.classList.remove('hidden') : card.classList.add('hidden'));
+        if (isCurrentlyHidden) {
+            btn.innerHTML = '👁'; btn.style.opacity = "1";
+        } else {
+            btn.innerHTML = '🚫'; btn.style.opacity = "0.7";
+        }
+    }
+
+    function toggleExpand(elementId, btn) {
+        const el = document.getElementById(elementId);
+        const bg = document.getElementById('overlay');
+        
+        if (el.classList.contains('expanded')) {
+            el.classList.remove('expanded'); bg.classList.remove('active'); btn.innerHTML = '🔍';
+        } else {
+            closeAll(); // Önce diğerlerini kapat
+            el.classList.add('expanded'); bg.classList.add('active'); btn.innerHTML = '❌';
+        }
+    }
+
+    function closeAll() {
+        // Expand edilmiş kartları kapat
+        document.querySelectorAll('.expanded').forEach(el => {
+            el.classList.remove('expanded');
+            const btn = el.querySelector('.btn-expand'); 
+            // Sidebarda buton farklı olabilir
+            if(btn && el.id === 'sidebar-container') btn.innerHTML = '🔍';
+            else if(btn) btn.innerHTML = '🔍';
+        });
+
+        // Program Overlay'i kapat
+        document.getElementById('program-overlay').classList.remove('active');
+
+        // Arkaplanı kaldır
+        document.getElementById('overlay').classList.remove('active');
+    }
+    document.addEventListener('keydown', e => { if (e.key === "Escape") closeAll(); });
+
+    // --- YÜKLEME VE KART YÖNETİMİ ---
+    window.onload = () => {
+        if(typeof donem1_data !== 'undefined') loadContainer('list-term-1', donem1_data);
+        if(typeof donem2_data !== 'undefined') loadContainer('list-term-2', donem2_data);
+        if(typeof donem3_data !== 'undefined') loadContainer('list-term-3', donem3_data);
+        if(typeof donem4_data !== 'undefined') loadContainer('list-term-4', donem4_data);
+        if(typeof zorunlu_havuz_data !== 'undefined') loadContainer('compulsory-pool', zorunlu_havuz_data);
+        if(typeof secmeli_havuz_data !== 'undefined') loadContainer('elective-pool', secmeli_havuz_data);
+        updateTotals();
+    };
+
+    function loadContainer(id, data) {
+        const list = document.getElementById(id);
+        data.forEach(c => list.appendChild(createCard(c)));
+    }
+
+    function createCard(c) {
+        const isSGM = c.id.startsWith("SGM");
+        const card = document.createElement('div');
+        card.className = `course-card ${c.type === 'S' ? 'is-elective' : ''} ${!isSGM ? 'is-fixed' : ''}`;
+        card.draggable = isSGM; card.dataset.akts = c.akts;
+        card.dataset.isSgm = isSGM; card.dataset.type = c.type;
+        
+        card.innerHTML = `
+            <div class="course-content">
+                <span class="course-code">${c.id}</span>
+                <span class="course-name">${c.name}</span>
+                <span class="akts-badge">${c.akts} AKTS</span>
+            </div>
+            <div class="card-controls">
+                <button class="icon-btn edit-btn" onclick="editCard(this)" title="Düzenle">✎</button>
+                <button class="icon-btn delete-btn" onclick="deleteCard(this)" title="Sil">🗑</button>
+            </div>
+        `;
+        
+        if(isSGM) {
+            card.addEventListener('dragstart', () => card.classList.add('dragging'));
+            card.addEventListener('dragend', () => { card.classList.remove('dragging'); updateTotals(); });
+        }
+        return card;
+    }
+
+    function editCard(btn) {
+        const card = btn.closest('.course-card');
+        const nameEl = card.querySelector('.course-name');
+        const newName = prompt("Ders İsmi:", nameEl.innerText);
+        if(newName) nameEl.innerText = newName;
+        const newAkts = prompt("AKTS:", card.dataset.akts);
+        if(newAkts && !isNaN(newAkts)) { 
+            card.dataset.akts = newAkts; 
+            card.querySelector('.akts-badge').innerText = `${newAkts} AKTS`; 
+            updateTotals(); 
+        }
+    }
+
+    function deleteCard(btn) {
+        if(confirm("Bu dersi silmek istediğinize emin misiniz?")) {
+            const card = btn.closest('.course-card');
+            card.remove();
+            updateTotals();
+        }
+    }
+
+    function addNewCourse(containerId, type) {
+        const name = prompt("Yeni Ders Adı:"); if(!name) return;
+        const akts = prompt("AKTS:", "5");
+        const id = type === 'Z' ? "SGM XXX" : "SGM SEC";
+        const card = createCard({id, name, akts, type});
+        document.getElementById(containerId).appendChild(card);
+        updateTotals();
+    }
+
+    function updateTotals() {
+        document.querySelectorAll('.semester-box').forEach(box => {
+            let totalAkts = 0, countSGM_Z = 0, countSGM_S = 0;
+            const quotaZ = parseInt(box.dataset.quotaZ) || 0;
+            const quotaS = parseInt(box.dataset.quotaS) || 0;
+
+            box.querySelectorAll('.course-card').forEach(c => {
+                totalAkts += parseInt(c.dataset.akts);
+                if(c.dataset.isSgm === "true") {
+                    if(c.dataset.type === "Z") countSGM_Z++;
+                    else if(c.dataset.type === "S") countSGM_S++;
+                }
+            });
+            
+            const aktsSpan = box.querySelector('.akts-val');
+            aktsSpan.innerText = totalAkts;
+            if(totalAkts > 30) aktsSpan.classList.add('limit-error'); else aktsSpan.classList.remove('limit-error');
+
+            const zSpan = box.querySelector('.quota-z');
+            const sSpan = box.querySelector('.quota-s');
+            
+            zSpan.innerText = `Zorunlu: ${countSGM_Z}/${quotaZ}`;
+            sSpan.innerText = `Seçmeli: ${countSGM_S}/${quotaS}`;
+
+            if(countSGM_Z !== quotaZ) zSpan.classList.add('limit-error'); else zSpan.classList.remove('limit-error');
+            if(countSGM_S !== quotaS) sSpan.classList.add('limit-error'); else sSpan.classList.remove('limit-error');
+            
+            if(totalAkts > 30 || countSGM_Z !== quotaZ || countSGM_S !== quotaS) {
+                box.classList.add('limit-exceeded');
+            } else {
+                box.classList.remove('limit-exceeded');
+            }
+        });
+    }
+
+    function getContainerData(containerId) {
+        const cards = document.querySelectorAll(`#${containerId} .course-card`);
+        return Array.from(cards).map(card => ({
+            id: card.querySelector('.course-code').innerText,
+            name: card.querySelector('.course-name').innerText,
+            akts: parseInt(card.dataset.akts),
+            type: card.classList.contains('is-elective') ? 'S' : 'Z'
+        }));
+    }
+    function downloadFile(filename, content) {
+        const blob = new Blob([content], { type: 'text/javascript' });
+        const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click();
+    }
+    function downloadJS(donemKey) {
+        let containerId = '', varName = '';
+        if (donemKey === 'donem1') { containerId = 'list-term-1'; varName = 'donem1_data'; }
+        else if (donemKey === 'donem2') { containerId = 'list-term-2'; varName = 'donem2_data'; }
+        else if (donemKey === 'donem3') { containerId = 'list-term-3'; varName = 'donem3_data'; }
+        else if (donemKey === 'donem4') { containerId = 'list-term-4'; varName = 'donem4_data'; }
+        const data = getContainerData(containerId);
+        downloadFile(`${donemKey}.js`, `const ${varName} = ${JSON.stringify(data, null, 4)};`);
+    }
+    function downloadHavuzlar() {
+        const zorunluData = getContainerData('compulsory-pool');
+        const secmeliData = getContainerData('elective-pool');
+        downloadFile('havuzlar.js', `const zorunlu_havuz_data = ${JSON.stringify(zorunluData, null, 4)};\n\nconst secmeli_havuz_data = ${JSON.stringify(secmeliData, null, 4)};`);
+    }
+    document.querySelectorAll('.course-list').forEach(list => {
+        list.addEventListener('dragover', e => e.preventDefault());
+        list.addEventListener('drop', e => { e.preventDefault(); const dragging = document.querySelector('.dragging'); if(dragging) list.appendChild(dragging); updateTotals(); });
+    });
+</script>
+</body>
+</html>
